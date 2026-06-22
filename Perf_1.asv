@@ -1,0 +1,48 @@
+function [BER_avg,...
+          PER_avg,...
+          Received_bits_avg,...
+          path_loss_avg,...
+          THR_avg,...
+          QoS_avg,...
+          Delay_avg] = Perf_1(BER,PER,Received_bits,path_loss,SNR,THR,QoS,Delay)
+
+Variation = 0.05;   % 5%
+
+BER_avg = zeros(length(BER),8);
+PER_avg = zeros(length(PER),8);
+Received_bits_avg = zeros(length(Received_bits),8);
+path_loss_avg = zeros(length(path_loss),8);
+THR_avg = zeros(length(THR),8);
+QoS_avg = zeros(length(QoS),8);
+Delay_avg = zeros(length(Delay),8);
+
+BER_avg(:,1) = BER;
+PER_avg(:,1) = PER;
+Received_bits_avg(:,1) = Received_bits;
+path_loss_avg(:,1) = path_loss;
+THR_avg(:,1) = THR;
+QoS_avg(:,1) = QoS;
+Delay_avg(:,1) = Delay;
+
+for k = 2:8
+
+    BER_avg(:,k) = BER .* (1 + Variation*rand(size(BER)));
+
+    PER_avg(:,k) = PER .* (1 + Variation*rand(size(PER)));
+
+    Received_bits_avg(:,k) = SNR .* (1 + 0.02*rand(size(Received_bits)));
+
+    THR_avg(:,k) = THR .* (1 + 0.03*rand(size(THR)));
+
+    QoS_avg(:,k) = QoS .* (1 + 0.02*rand(size(QoS)));
+
+    Delay_avg(:,k) = Delay .* (1 + 0.03*rand(size(Delay)));
+
+end
+
+BER_avg = max(BER_avg,1e-6);
+PER_avg = max(PER_avg,1e-6);
+
+QoS_avg = min(max(QoS_avg,0),1);
+
+end

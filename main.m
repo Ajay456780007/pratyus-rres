@@ -1,0 +1,209 @@
+clc;
+clear;
+close all;
+
+% SYSTEM PARAMETERS
+
+Nt = 2;                   
+Nr = 2;                   
+
+NumUsers = 20;
+NumBS = 10;
+
+Nfft = 64;
+CP = 16;
+
+EbN0_dB = -20:1:20;
+
+NumFrames = 100;
+FrameLength = 10000;
+
+UE = Initialize_Users(NumUsers);
+
+BS = Initialize_BS(NumBS);
+
+
+BER = zeros(size(EbN0_dB));
+PER = zeros(size(EbN0_dB));
+SNR = zeros(size(EbN0_dB));
+THR = zeros(size(EbN0_dB));
+QoS = zeros(size(EbN0_dB));
+PilotBitsMetric = zeros(size(EbN0_dB));
+ReceivedBitsMetric = zeros(size(EbN0_dB));
+PathLossMetric = zeros(size(EbN0_dB));
+Delay = zeros(size(EbN0_dB));
+
+for snrIdx = 1:length(EbN0_dB)
+
+    EbN0 = EbN0_dB(snrIdx);
+
+    TotalErrors = 0;
+    TotalPackets = 0;
+    TotalPacketErrors = 0;
+    TotalBits = 0;
+
+    ThroughputTemp = [];
+    PilotBitsTemp = [];
+    ReceivedBitsTemp = [];
+    PathLossTemp = [];
+    DelayTemp = [];
+
+    for frame = 1:NumFrames
+
+        bits = randi([0 1],FrameLength,1);
+        NumChannels = 100;
+        [BestChannel,...
+         ChannelGain,...
+         ChannelSNR] = ...
+         Channel_Estimation(NumChannels,EbN0);
+
+        EffectiveSNR = ChannelSNR(BestChannel);
+
+        rxOFDM = ...
+        OFDM_Transmission(bits,...
+                          EffectiveSNR,...
+                          Nfft,...
+                          CP);
+        
+        rxNOMA = ...
+        NOMA_Transmission(bits,...
+                          EffectiveSNR);
+
+        rxBits = round((rxOFDM + rxNOMA)/2);
+
+        bitErrors = sum(bits~=rxBits);
+
+        DataRate = 1e6;      % 1 Mbps
+
+        TxDelay = length(bits)/DataRate;
+        
+        RetransDelay = bitErrors*1e-6;
+        
+        TotalDelay = TxDelay + RetransDelay;
+        
+        DelayTemp(end+1) = TotalDelay*1000;
+
+        TotalErrors = TotalErrors + bitErrors;
+
+        TotalBits = TotalBits + length(bits);
+
+        TotalPackets = TotalPackets + 1;
+        
+        PilotBits = randi([0 1],128,1);
+
+        Distance = 50 + rand()*950;
+        
+        SentBits = length(bits);
+
+        ReceivedBits = sum(bits == rxBits);
+        
+        BitLoss = SentBits - ReceivedBits;
+        
+        PilotBitsTemp(end+1) = length(PilotBits);
+        
+        ReceivedBitsTemp(end+1) = ReceivedBits;
+        
+        PathLossTemp(end+1) = BitLoss;
+
+        if bitErrors > 0
+            TotalPacketErrors = TotalPacketErrors + 1;
+        end
+
+        ThroughputTemp(end+1) = ...
+            (length(bits)-bitErrors)/length(bits);
+
+    end
+
+    BER(snrIdx) = TotalErrors/TotalBits;
+
+    PER(snrIdx) = TotalPacketErrors/TotalPackets;
+
+    SNR(snrIdx) = EbN0;
+
+    THR(snrIdx) = mean(ThroughputTemp)*10;
+
+    QoS(snrIdx) = (1-BER(snrIdx))*100;
+
+    PilotBitsMetric(snrIdx) = mean(PilotBitsTemp);
+    
+    ReceivedBitsMetric(snrIdx) = mean(ReceivedBitsTemp);
+    
+    Delay(snrIdx) = mean(DelayTemp);
+
+    PathLossMetric(snrIdx) = mean(PathLossTemp);
+
+    fprintf('Eb/N0 = %d dB Completed\n',EbN0);
+
+end
+
+% PLOTS
+% [Ber1,Per1,Received_bit,Pathloss1,THR1,QoS1,Delay1] = Perf_1(BER,PER,ReceivedBitsMetric,PathLossMetric,THR,QoS,Delay);
+
+figure;
+plot(EbN0_dB,Delay,'-o','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('Delay (ms)');
+title('Delay vs Eb/N0');
+
+
+figure;
+plot(EbN0_dB,PilotBitsMetric,'-o','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('Pilot Bits');
+title('Pilot Bits vs Eb/N0');
+
+figure;
+plot(EbN0_dB,ReceivedBitsMetric,'-s','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('Received Bits');
+title('Received Bits vs Eb/N0');
+
+figure;
+plot(EbN0_dB,PathLossMetric,'-d','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('Path Loss (dB)');
+title('Path Loss vs Eb/N0');
+
+
+figure;
+semilogy(EbN0_dB,BER,'-o','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('BER');
+title('BER vs Eb/N0');
+
+
+figure;
+semilogy(EbN0_dB,PER,'-s','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('PER');
+title('PER vs Eb/N0');
+
+figure;
+plot(EbN0_dB,SNR,'-*','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('SNR (dB)');
+title('SNR vs Eb/N0');
+
+figure;
+plot(EbN0_dB,THR,'-d','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('Throughput (Mbps)');
+title('Throughput vs Eb/N0');
+
+figure;
+plot(EbN0_dB,QoS,'-^','LineWidth',2);
+grid on;
+xlabel('Eb/N0 (dB)');
+ylabel('QoS (%)');
+title('QoS vs Eb/N0');
+
+disp('Simulation Completed');
+

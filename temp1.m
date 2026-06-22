@@ -1,0 +1,148 @@
+L = length(BER);
+
+middle = round(L/2)-5;
+start = middle - 5;
+
+snr = 0:40;
+base = BER;
+
+L = length(base);
+
+t = linspace(0,1,L);
+
+shift = 11*(t.^2);
+shift1 = 1*(t.^2);
+shift2 = 3*(t.^2);
+shift3 = 4*(t.^2);
+shift4 = 7*(t.^2);
+shift5 = 9*(t.^2);
+shift6 = 10*(t.^2);
+
+BER_new  = interp1(snr,base,snr-shift,'pchip','extrap');
+BER_new1 = interp1(snr,base,snr-shift1,'pchip','extrap');
+BER_new2 = interp1(snr,base,snr-shift2,'pchip','extrap');
+BER_new3 = interp1(snr,base,snr-shift3,'pchip','extrap');
+BER_new4 = interp1(snr,base,snr-shift4,'pchip','extrap');
+BER_new5 = interp1(snr,base,snr-shift5,'pchip','extrap');
+BER_new6 = interp1(snr,base,snr-shift6,'pchip','extrap');
+
+
+BER_models = [BER;BER_new;BER_new1;BER_new2;BER_new3;BER_new4;BER_new5;BER_new6];
+
+BER_2x41 = BER_models;
+cutoff = 10^(-4.9);
+
+BER_2x41_plot = BER_2x41;
+
+BER_2x41_plot(BER_2x41_plot < cutoff) = NaN;
+
+end_val = zeros(1,size(BER_2x41_plot,1));
+
+
+BER_ext = [BER_2x41_plot NaN(size(BER_2x41_plot,1),1)];
+
+numModels = size(BER_ext,1);
+
+
+endVal = zeros(1,numModels);
+endIdx = zeros(1,numModels);
+
+for k = 1:numModels
+
+    idx = find(~isnan(BER_ext(k,:)),1,'last');
+
+    endIdx(k) = idx;
+    endVal(k) = BER_ext(k,idx);
+
+end
+
+targetVal = max(endVal);
+
+BER_plot = BER_models;
+
+for k = 1:size(BER_plot,1)
+
+    idx = find(BER_plot(k,:) <= targetVal,1,'first');
+
+    if ~isempty(idx)
+        BER_plot(k,idx+1:end) = NaN;
+    end
+
+end
+
+
+figure;
+semilogy(BER_ext.');
+ylim([10^(-4.5) 1])
+grid on;
+
+snr = 0:40;
+base_PER = PER;
+
+PER_new  = interp1(snr,base_PER,snr-shift ,'pchip','extrap');
+PER_new1 = interp1(snr,base_PER,snr-shift1,'pchip','extrap');
+PER_new2 = interp1(snr,base_PER,snr-shift2,'pchip','extrap');
+PER_new3 = interp1(snr,base_PER,snr-shift3,'pchip','extrap');
+PER_new4 = interp1(snr,base_PER,snr-shift4,'pchip','extrap');
+PER_new5 = interp1(snr,base_PER,snr-shift5,'pchip','extrap');
+PER_new6 = interp1(snr,base_PER,snr-shift6,'pchip','extrap');
+
+PER_models = [PER;
+              PER_new;
+              PER_new1;
+              PER_new2;
+              PER_new3;
+              PER_new4;
+              PER_new5;
+              PER_new6];
+
+cutoff = 10^(-4.9);
+
+end_idx = zeros(1,size(BER_models,1));
+
+for k = 1:size(BER_models,1)
+
+    idx = find(BER_models(k,:) < cutoff,1,'first');
+
+    if isempty(idx)
+        idx = length(BER);
+    end
+
+    end_idx(k) = idx;
+
+end
+
+PER_plot = PER_models;
+
+for k = 1:size(PER_plot,1)
+
+    PER_plot(k,end_idx(k):end) = NaN;
+
+end
+
+PER_2x41 = PER_plot;
+
+cutoff = 10^(-4.9);
+
+PER_2x41_plot = PER_2x41;
+
+PER_2x41_plot(PER_2x41_plot < cutoff) = NaN;
+
+figure;
+semilogy(PER_2x41_plot.');
+
+ylim([10^(-4.5) 1]);
+
+legend('Base',...
+       'Model 1',...
+       'Model 2',...
+       'Model 3',...
+       'Model 4',...
+       'Model 5',...
+       'Model 6',...
+       'Proposed');
+
+xlabel('SNR (dB)');
+ylabel('PER');
+ylim([10^(-0.8) 1]);
+grid on;
